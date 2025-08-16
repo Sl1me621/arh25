@@ -9,23 +9,30 @@ class VideoFileProcessor:
     def __init__(self):
         # Параметры цветового детектирования (HSV)
         self.detection_history = []  # порядок первого появления: [{id, color, first_frame}]
-        self.reappear_gap = 200  # после такого числа кадров "старый" объект считается новым
+        self.reappear_gap = 150  # после такого числа кадров "старый" объект считается новым
 
         self.color_params = {
             'red': {
-                'lower': np.array([133, 154, 0]),
+                'lower': np.array([132, 131, 102]),
                 'upper': np.array([179, 255, 255]),
                 'color': (0, 0, 255)  # Красный в BGR
             },
             'green': {
-                'lower': np.array([69, 119, 210]),
-                'upper': np.array([83, 200, 255]),
-                'color': (0, 255, 0)  # Зеленый в BGR
+                # 'lower': np.array([69, 119, 210]),
+                # 'upper': np.array([83, 200, 255]),
+                # 'color': (0, 255, 0)  # Зеленый в BGR
+                'lower': np.array([69, 104, 15]),
+                    'upper': np.array([77, 209, 255]),
+                    'color': (0, 0, 255)  # Красный в BGR
             },
             'blue': {
-                'lower': np.array([64, 22, 165]),
-                'upper': np.array([95, 97, 255]),
-                'color': (255, 0, 0)  # Синий в BGR
+                # 'lower': np.array([64, 22, 165]),
+                # 'upper': np.array([95, 97, 255]),
+                # 'color': (255, 0, 0)  # Синий в BGR
+                'lower': np.array([65, 42, 160]),
+                'upper': np.array([113, 155, 255]),
+                'color': (0, 0, 255)  # Красный в BGR
+
             }
         }
         
@@ -35,7 +42,7 @@ class VideoFileProcessor:
         self.circularity_thresh = 0.7  # Порог округлости
         
         # Параметры трекинга объектов
-        self.min_detections = 20    # Минимальное количество обнаружений для учета объекта
+        self.min_detections = 15    # Минимальное количество обнаружений для учета объекта
         self.max_distance =150     # Максимальное расстояние между кадрами для трекинга
         
         # Статистика
@@ -288,7 +295,7 @@ if __name__ == '__main__':
     processor = VideoFileProcessor()
     
     # Укажите путь к входному видеофайлу
-    input_video = "C:/Users/Sl1m/Desktop/pioneer_max/arh25/drone_footage_20250815_155849.mp4"
+    input_video = "drone_processed_20250816_170950.avi"
     output_video = "processed_output.avi"  # или None если не нужно сохранять
     
     processor.process_video_file(input_video, output_video)

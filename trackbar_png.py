@@ -71,5 +71,5 @@ def get_color_thresholds_from_image(image_path, color_name='red'):
     print("}")
 
 if __name__ == "__main__":
-    image_path = "C:/Users/User/Desktop/image1.png"  # Укажите путь к изображению
+    image_path = "image.png"  # Укажите путь к изображению
     get_color_thresholds_from_image(image_path, 'red')
