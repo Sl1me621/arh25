@@ -278,7 +278,7 @@ if __name__ == '__main__':
     processor = VideoFileProcessor()
     
     # Укажите путь к входному видеофайлу
-    input_video = "drone_footage_20250815_155849.avi"
-    output_video = "processed_output.avi"  # или None если не нужно сохранять
+    input_video = "C:/Users/Sl1m/Desktop/pioneer_max/arh25/drone_footage_20250815_155849.mp4"
+    output_video = None  # или None если не нужно сохранять
     
     processor.process_video_file(input_video, output_video)

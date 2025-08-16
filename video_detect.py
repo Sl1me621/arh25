@@ -8,6 +8,9 @@ from collections import defaultdict
 class VideoFileProcessor:
     def __init__(self):
         # Параметры цветового детектирования (HSV)
+        self.detection_history = []  # порядок первого появления: [{id, color, first_frame}]
+        self.reappear_gap = 200  # после такого числа кадров "старый" объект считается новым
+
         self.color_params = {
             'red': {
                 'lower': np.array([133, 154, 0]),
@@ -33,7 +36,7 @@ class VideoFileProcessor:
         
         # Параметры трекинга объектов
         self.min_detections = 20    # Минимальное количество обнаружений для учета объекта
-        self.max_distance =100     # Максимальное расстояние между кадрами для трекинга
+        self.max_distance =150     # Максимальное расстояние между кадрами для трекинга
         
         # Статистика
         self.object_id = 0
@@ -93,48 +96,66 @@ class VideoFileProcessor:
         self._analyze_and_print_stats()
     
     def _analyze_and_print_stats(self):
-        """Анализ статистики и вывод результатов"""
-        # Фильтрация объектов по количеству обнаружений
-        valid_objects = {}
+        """Итоговый вывод: объекты по порядку первого появления."""
+        # Фильтруем объекты по устойчивости (как и раньше)
+        valid_ids = {obj_id for obj_id, n in self.detection_stats.items()
+                    if n >= self.min_detections}
+
+        # Сортируем историю по кадру первого появления
+        ordered = sorted(self.detection_history, key=lambda x: x['first_frame'])
+
+        # Счётчики по цветам (по валидным)
         color_counts = {'red': 0, 'green': 0, 'blue': 0}
-        
-        for obj_id, detections in self.detection_stats.items():
-            if detections >= self.min_detections:
-                obj_info = self.tracked_objects[obj_id]
-                color_counts[obj_info['color']] += 1
-                valid_objects[obj_id] = obj_info
-        
+        for obj_id in valid_ids:
+            color = self.tracked_objects[obj_id]['color']
+            color_counts[color] += 1
+
         print("\n=== Результаты обработки видео ===")
         print(f"Всего кадров обработано: {self.frame_count}")
-        print(f"Всего объектов обнаружено: {len(valid_objects)}")
+        print(f"Всего объектов обнаружено: {len(valid_ids)}")
         print("По цветам:")
-        for color, count in color_counts.items():
-            print(f"  {color}: {count}")
-        
-        # Дополнительная информация для отладки
-        print("\nДетальная информация по объектам:")
-        for obj_id, obj_info in valid_objects.items():
-            print(f"ID: {obj_id}, Цвет: {obj_info['color']}, "
-                  f"Обнаружений: {self.detection_stats[obj_id]}")
+        for c in ['red', 'green', 'blue']:
+            print(f"  {c}: {color_counts[c]}")
+
+        # Порядок нахождения (только валидные объекты)
+        print("\nПорядок обнаружения объектов (от начала видео):")
+        order_num = 1
+        for entry in ordered:
+            obj_id = entry['id']
+            if obj_id not in valid_ids:
+                continue
+            color = entry['color']
+            first_frame = entry['first_frame']
+            detections = self.detection_stats[obj_id]
+            print(f"{order_num}. ID:{obj_id} — {color}, первый кадр: {first_frame}, "
+                f"всего детекций: {detections}")
+            order_num += 1
+
+        if order_num == 1:
+            print("Нет объектов, прошедших порог устойчивости.")
+
     
     def _get_nearest_object(self, point, color):
-        """Поиск ближайшего объекта того же цвета"""
         min_dist = float('inf')
         nearest_id = None
         
         for obj_id, obj_info in self.tracked_objects.items():
             if obj_info['color'] != color:
                 continue
-                
-            # Берем последнюю известную позицию объекта
+
+            # Проверка: если объект слишком давно не видели — не использовать
+            if self.frame_count - obj_info['last_seen'] > self.reappear_gap:
+                continue
+
             last_pos = obj_info['positions'][-1]
             dist = np.linalg.norm(np.array(point) - np.array(last_pos))
             
             if dist < self.max_distance and dist < min_dist:
                 min_dist = dist
                 nearest_id = obj_id
-                
+    
         return nearest_id if min_dist < self.max_distance else None
+
     
     def is_circular(self, cnt):
         """Проверка, является ли контур круглым"""
@@ -231,6 +252,9 @@ class VideoFileProcessor:
                 self.tracked_objects[obj_id]['last_seen'] = self.frame_count
                 self.tracked_objects[obj_id]['detected'] = True
                 self.detection_stats[obj_id] += 1
+
+                # выводим в терминал
+                print(f"Кадр {self.frame_count}: Обновлен объект ID:{obj_id} ({color})")
             else:
                 # Создаем новый объект
                 self.object_id += 1
@@ -241,6 +265,17 @@ class VideoFileProcessor:
                     'detected': True
                 }
                 self.detection_stats[self.object_id] = 1
+
+                # фиксируем порядок первого появления
+                self.detection_history.append({
+                    'id': self.object_id,
+                    'color': color,
+                    'first_frame': self.frame_count
+                })
+
+                # выводим в терминал
+                print(f"Кадр {self.frame_count}: Новый объект ID:{self.object_id} ({color})")
+
         
         # Удаляем объекты, которые давно не видели (опционально)
         # to_delete = [obj_id for obj_id, obj in self.tracked_objects.items() 
@@ -253,7 +288,7 @@ if __name__ == '__main__':
     processor = VideoFileProcessor()
     
     # Укажите путь к входному видеофайлу
-    input_video = "drone_footage_20250815_155849.avi"
+    input_video = "C:/Users/Sl1m/Desktop/pioneer_max/arh25/drone_footage_20250815_155849.mp4"
     output_video = "processed_output.avi"  # или None если не нужно сохранять
     
     processor.process_video_file(input_video, output_video)
